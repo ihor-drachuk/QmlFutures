@@ -1,0 +1,104 @@
+name: Build & test
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, macos-10.15, windows-2016, windows-2019]
+        build_type: [Release, Debug]
+        use_qt: [yes]
+
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'CI skip') && !contains(github.event.head_commit.message, 'Skip CI')"
+    timeout-minutes: 20
+
+    steps:
+    - name: "Set OS-specific values (Linux)"
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: |
+       echo "GENERATOR=Unix Makefiles" >> $GITHUB_ENV
+       echo "CORES=$(nproc --all)" >> $GITHUB_ENV
+       echo "QML_TESTS=-DQML_FUTURES_ALLOW_QML_TESTS=OFF" >> $GITHUB_ENV
+
+    - name: "Set OS-specific values (Mac)"
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
+      run: |
+       echo "GENERATOR=Unix Makefiles" >> $GITHUB_ENV
+       echo "CORES=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+       echo "QT_HOST=mac" >> $GITHUB_ENV
+       echo "QT_ARCH=clang_64" >> $GITHUB_ENV
+
+    - name: "Set OS-specific values (Win; 2017)"
+      if: ${{ matrix.os == 'windows-2016' }}
+      shell: bash
+      run: |
+       echo "GENERATOR=Visual Studio 15 2017" >> $GITHUB_ENV
+       echo "CORES=$NUMBER_OF_PROCESSORS" >> $GITHUB_ENV
+       echo "QT_HOST=windows" >> $GITHUB_ENV
+       echo "QT_ARCH=win32_msvc2019" >> $GITHUB_ENV
+
+    - name: "Set OS-specific values (Win; 2019)"
+      if: ${{ matrix.os == 'windows-2019' }}
+      shell: bash
+      run: |
+       echo "GENERATOR=Visual Studio 16 2019" >> $GITHUB_ENV
+       echo "CORES=$NUMBER_OF_PROCESSORS" >> $GITHUB_ENV
+       echo "QT_HOST=windows" >> $GITHUB_ENV
+       echo "QT_ARCH=win32_msvc2019" >> $GITHUB_ENV
+       echo "MSVC_ARCH=-A Win32" >> $GITHUB_ENV
+
+    - name: Cache Qt
+      id: cache-qt
+      if: ${{ matrix.use_qt == 'yes' && runner.os != 'Linux' }}
+      uses: actions/cache@v1
+      with:
+        path: ${{github.workspace}}/qt
+        key: ${{ matrix.os }}-QtCache
+
+    - name: Install Qt
+      if: ${{ matrix.use_qt == 'yes' && runner.os != 'Linux' }}
+      uses: jurplel/install-qt-action@v2.13.0
+      with:
+        version: 5.15.2
+        host: ${{env.QT_HOST}}
+        target: desktop
+        arch: ${{env.QT_ARCH}}
+        dir: ${{github.workspace}}/qt
+        modules: qtcharts qtdatavis3d qtpurchasing qtvirtualkeyboard qtwebengine qtnetworkauth qtwebglplugin qtscript
+        cached: ${{ steps.cache-qt.outputs.cache-hit }}
+        setup-python: false
+        
+    - name: Install Qt (Linux)
+      if: ${{ matrix.use_qt == 'yes' && runner.os == 'Linux' }}
+      shell: bash
+      run: |
+       sudo apt-get install qt5-default qtdeclarative5-dev
+
+    - name: "Add Qt to PATH"
+      if: ${{ matrix.use_qt == 'yes' && runner.os != 'Linux' }}
+      shell: bash
+      run: |
+       echo "${{github.workspace}}/qt" >> $GITHUB_PATH
+
+    - uses: actions/checkout@v2
+      with:
+        path: src
+        submodules: true
+
+    - name: Build
+      working-directory: ${{github.workspace}}/src
+      shell: bash
+      run: |
+       cmake ${{env.QML_TESTS}} -DQML_FUTURES_CI_RUN=ON -DQML_FUTURES_ENABLE_TESTS=ON -DQML_FUTURES_ENABLE_BENCHMARK=ON -DCMAKE_BUILD_TYPE="${{matrix.build_type}}" ${{env.MSVC_ARCH}} -G "${{env.GENERATOR}}" -S "${{github.workspace}}/src" -B "${{github.workspace}}/build"
+       cmake --build "${{github.workspace}}/build" --config "${{matrix.build_type}}" -j "${{env.CORES}}"
+       ctest --rerun-failed --output-on-failure --timeout 20 -C "${{matrix.build_type}}" --test-dir "${{github.workspace}}/build/tests"

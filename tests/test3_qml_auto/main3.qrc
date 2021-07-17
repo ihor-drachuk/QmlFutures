@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/QmlFutures/QmlTests">
+        <file>tst_0_init.qml</file>
+        <file>tst_1_condition.qml</file>
+        <file>tst_2_createFuture.qml</file>
+        <file>tst_3_qmlFutures.qml</file>
+        <file>tst_4_qmlPromise.qml</file>
+        <file>tst_5_complexType.qml</file>
+    </qresource>
+</RCC>

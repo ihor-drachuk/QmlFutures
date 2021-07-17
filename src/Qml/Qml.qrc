@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/QmlFutures">
+        <file>QmlFutures/qmldir</file>
+    </qresource>
+</RCC>

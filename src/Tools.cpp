@@ -1,0 +1,1 @@
+#include <QmlFutures/Tools.h>
