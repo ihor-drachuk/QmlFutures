@@ -3,24 +3,15 @@
 [![Build & test](https://github.com/ihor-drachuk/QmlFutures/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/ihor-drachuk/QmlFutures/actions/workflows/ci.yml)
 
 ### Features list
- - **Scriptable access to QFuture<T> via QmlFutures singleton**
-   - onFinished / onResult or onFulfilled / onCanceled
-   - isRunning / isFinished / isFulfilled / isCanceled
-   - resultRawOf / resultConvOf
-   - stateOf
-
  - **Declarative access to QFuture<T> via QmlFutureWatcher**
-   - Input property: future
-   - Output properties: state, result, resultConverted, isFinished, isCanceled
 
- - **Context/lifetime tracking** - be sure your future-handler will not be called when irrelevant
+ - **Scriptable access to QFuture<T> via QmlFutures singleton**
+
+ - **Context/lifetime tracking** - you can be sure that your future-handler will not be called when irrelevant
    - QmlFutures.onFinished(f, QF.conditionObj(root), function(future, result, resultConv) { /* handler */ });
-
-     Handler will be called only if `root` still exists.
-
+     - Handler will be called only if `root` still exists.
    - QmlFutures.onFinished(f, QF.conditionProp(root, "visible", true, QF.Equal), function(future, result, resultConv) { /* handler */ });
-
-     Handler will be called only if `root` is visible.
+     - Handler will be called only if `root` is visible.
 
  - **Custom types support**
 
@@ -31,8 +22,58 @@
      - QF.createTimedFuture(value, delayMs)
      - QF.createTimedCanceledFuture(delayMs)
 
-### Setup (CMake)
+## API
+`QmlFutures` singleton
+  - bool isSupportedFuture(future);
+  - void onFinished(future, context, handler);
+  - void onResult(future, context, handler);
+  - void onFulfilled(future, context, handler);
+  - void onCanceled(future, context, handler);
+  - void forget(future);
+  - void wait(future);
+  - bool isRunning(future);
+  - bool isFinished(future);
+  - bool isFulfilled(future);
+  - bool isCanceled(future);
+  - QVariant resultRawOf(future);
+  - QVariant resultConvOf(future);
+  - QF::WatcherState stateOf(future);
 
+`QF` singleton
+  - enum QF.WatcherState { Uninitialized, Pending, Running, Paused, Finished, FinishedFulfilled, FinishedCanceled}
+  - enum QF.Comparison { Equal, NotEqual }
+  - enum QF.CombineTrigger { One, All }
+  - QVariant conditionObj(object);
+  - QVariant conditionProp(object, propertyName, value, comparison);
+  - QVariant createFuture(fulfilTrigger, cancelTrigger);
+  - QVariant createTimedFuture(result, delayMs);
+  - QVariant createTimedCanceledFuture(delayMs);
+  - QVariant combine(combineTrigger, list<QFuture_or_Condition>) — combine several futures and conditions to one QFuture
+
+`QmlFutureWatcher` item
+  - Property: future (in)
+  - Property: state
+  - Property: result
+  - Property: resultConverted
+  - Property: isFinished
+  - Property: isCanceled
+  - Property: isFulfilled
+  - Signal: uninitialized()
+  - Signal: initialized()
+  - Signal: started()
+  - Signal: paused()
+  - Signal: finished(isFulfilled, result, resultConverted)
+  - Signal: fulfilled(result, resultConverted)
+  - Signal: canceled()
+
+`QmlPromise` item
+  - Property: fulfil — setting this to `true` finishes the future
+  - Property: cancel — setting this to `true` cancels the future
+  - Property: result — setting some value to this property finishes the future with that value
+  - Property: future (out)
+
+## Setup (CMake)
+CMakeLists.txt
 ```CMake
 include(FetchContent)
 FetchContent_Declare(QmlFutures
@@ -44,7 +85,30 @@ FetchContent_MakeAvailable(QmlFutures)
 target_link_libraries(YourProject PRIVATE QmlFutures)   # Replace "YourProject" !
 ```
 
-### Example #1
+main.cpp
+```C++
+#include <QmlFutures/Init.h>
+
+int main(int argc, char *argv[])
+{
+    // ...
+    QQmlApplicationEngine engine;
+
+    QmlFutures::Init qmlFuturesInit(engine);
+    // ...
+}
+```
+
+main.qml
+```QML
+import QmlFutures 1.0
+
+// ...
+```
+
+## Examples & short manual
+
+### Example: #1
 ```QML
 import QtQuick 2.9
 import QmlFutures 1.0
@@ -56,7 +120,7 @@ Item {
         future: FileReader.readAsync("text.txt")  // Assume 'FileReader::readSync' returns 'QFuture<QString>'
 
         onFinished: {
-            if (fulfilled) {
+            if (isFulfilled) {
                 console.debug("Result content: " + result);
             } else {
                 console.debug("Canceled!");
@@ -66,7 +130,7 @@ Item {
 }
 ```
 
-### Example #2
+### Example: #2
 ```QML
 import QtQuick 2.9
 import QmlFutures 1.0
@@ -90,7 +154,7 @@ Item {
 }
 ```
 
-### C++ part initialization & custom type registration
+### Example: C++ part initialization & custom type registration
 ```C++
 #include <QmlFutures/Init.h>  // <---
 
@@ -144,5 +208,7 @@ QmlFutureWatcher {
     }
 }
 ```
+
+### Example: Wait for multiple events (TBD...)
 
 For more examples see tests/test3_qml_auto/*.qml
