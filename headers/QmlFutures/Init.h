@@ -61,7 +61,9 @@ public:
     }
 
     std::shared_ptr<FutureWrapper> createFutureWrapper(const QVariant& unknownFuture);
-    bool isFutureSupported(const QVariant& unknownFuture) const;
+    bool isSupportedFuture(const QVariant& unknownFuture) const;
+    static bool isCondition(const QVariant& value);
+    static bool isNull(const QVariant& value);
 
 private:
     using FactoryMethod = std::function<std::shared_ptr<FutureWrapper>(const QVariant& future)>;

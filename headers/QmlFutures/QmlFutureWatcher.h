@@ -17,7 +17,7 @@ class QmlFutureWatcher : public QObject
     friend class Init;
 public:
     Q_PROPERTY(QVariant future READ future WRITE setFuture NOTIFY futureChanged)
-    Q_PROPERTY(int state READ state NOTIFY stateChanged)
+    Q_PROPERTY(int state READ stateInt NOTIFY stateChanged)
     Q_PROPERTY(QVariant result READ result NOTIFY resultChanged)
     Q_PROPERTY(QVariant resultConverted READ resultConverted NOTIFY resultConvertedChanged)
     Q_PROPERTY(bool isFinished READ isFinished NOTIFY isFinishedChanged)
@@ -32,7 +32,7 @@ signals:
     void initialized();
     void started();
     void paused();
-    void finished(bool fulfilled, const QVariant& result, const QVariant& resultConverted);
+    void finished(bool isFulfilled, const QVariant& result, const QVariant& resultConverted);
     void fulfilled(const QVariant& result, const QVariant& resultConverted);
     void canceled();
 
@@ -40,6 +40,7 @@ signals:
 public:
     QVariant future() const;
     QF::WatcherState state() const;
+    int stateInt() const { return (int)state(); }
     QVariant result() const;
     QVariant resultConverted() const;
     bool isFinished() const;

@@ -6,5 +6,6 @@
         <file>tst_3_qmlFutures.qml</file>
         <file>tst_4_qmlPromise.qml</file>
         <file>tst_5_complexType.qml</file>
+        <file>tst_6_combine.qml</file>
     </qresource>
 </RCC>

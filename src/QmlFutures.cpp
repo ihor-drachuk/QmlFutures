@@ -67,7 +67,7 @@ QmlFutures::~QmlFutures()
 
 bool QmlFutures::isSupportedFuture(const QVariant& value)
 {
-    return Init::instance()->isFutureSupported(value);
+    return Init::instance()->isSupportedFuture(value);
 }
 
 void QmlFutures::onFinished(const QVariant& future, const QVariant& context, const QJSValue& handler)
@@ -194,16 +194,6 @@ QF::WatcherState QmlFutures::stateOf(const QVariant& future)
     return Init::instance()->createFutureWrapper(future)->getState();
 }
 
-bool QmlFutures::isCondition(const QVariant& value)
-{
-    return (value.userType() == qMetaTypeId<ConditionPtr>());
-}
-
-bool QmlFutures::isNull(const QVariant& value)
-{
-    return (value.isNull() || !value.isValid());
-}
-
 bool QmlFutures::isConditionCanceled(const QVariant& value)
 {
     if (isNull(value)) return false;
@@ -213,6 +203,16 @@ bool QmlFutures::isConditionCanceled(const QVariant& value)
     assert(cond);
 
     return (!cond->isActive() || !cond->isValid());
+}
+
+bool QmlFutures::isNull(const QVariant& value)
+{
+    return Init::instance()->isNull(value);
+}
+
+bool QmlFutures::isCondition(const QVariant& value)
+{
+    return Init::instance()->isCondition(value);
 }
 
 QmlFutures::ContextPtr QmlFutures::findFutureCtx(const QVariant& future)

@@ -3,6 +3,8 @@
 #include <QQmlEngine>
 #include <QMap>
 #include <QTimer>
+#include <QJSValueList>
+#include <QMetaEnum>
 #include <cassert>
 #include <optional>
 #include <QmlFutures/Init.h>
@@ -13,7 +15,101 @@
 
 namespace QmlFutures {
 
-struct FutureCtx
+struct QF::CombineCtx
+{
+    QF* master { nullptr };
+    QF::CombineTrigger trigger;
+    QFutureInterface<QVariant> interface;
+    QList<std::shared_ptr<FutureWrapper>> futureWrappers;
+    QList<ConditionPtr> conditions;
+    QList<QMetaObject::Connection> connections;
+
+    CombineCtx(QF* master)
+        : master(master)
+    {
+        assert(master);
+    }
+
+    ~CombineCtx() {
+        disconnect();
+
+        if (!interface.isFinished()) {
+            interface.reportCanceled();
+            interface.reportFinished();
+        }
+    }
+
+    bool isCanceled() {
+        for (const auto& x : qAsConst(futureWrappers))
+            if (x->isCanceled())
+                return true;
+
+        for (const auto& x : qAsConst(conditions))
+            if (!x->isValid())
+                return true;
+
+        return false;
+    }
+
+    bool isFulfilled() {
+        switch (trigger) {
+            case QF::CombineTrigger::One:
+                for (const auto& x : qAsConst(futureWrappers))
+                    if (x->isFulfilled())
+                        return true;
+
+                for (const auto& x : qAsConst(conditions))
+                    if (x->isActive() == x->triggerOn())
+                        return true;
+
+                return false;
+                break;
+
+            case QF::CombineTrigger::All: {
+                int counter = 0;
+                int limit = futureWrappers.size() + conditions.size();
+
+                for (const auto& x : qAsConst(futureWrappers))
+                    if (x->isFulfilled())
+                        counter++;
+
+                for (const auto& x : qAsConst(conditions))
+                    if (x->isActive() == x->triggerOn())
+                        counter++;
+
+                return (counter == limit);
+                break;
+            }
+        }
+
+        assert(!"Unexpected flow");
+        return true;
+    }
+
+    void connect() {
+        for (const auto& x : qAsConst(futureWrappers)) {
+            auto con = QObject::connect(x.get(), &FutureWrapper::stateChanged, master, [this, master = master](){ master->recheckCombineCtx(this); });
+            connections.append(con);
+        }
+
+        for (const auto& x : qAsConst(conditions)) {
+            auto con1 = QObject::connect(x.get(), &Condition::isActiveChanged, master, [this, master = master](){ master->recheckCombineCtx(this); });
+            auto con2 = QObject::connect(x.get(), &Condition::isValidChanged, master, [this, master = master](){ master->recheckCombineCtx(this); });
+            connections.append(con1);
+            connections.append(con2);
+        }
+    }
+
+    void disconnect() {
+        for (auto& x : connections) {
+            QObject::disconnect(x);
+        }
+
+        connections.clear();
+    }
+};
+
+struct QF::FutureCtx
 {
     FutureCtx() = delete;
 
@@ -42,23 +138,18 @@ struct FutureCtx
     }
 };
 
-using FutureCtxPtr = std::shared_ptr<FutureCtx>;
-
-
-struct TimedFutureCtx
+struct QF::TimedFutureCtx
 {
     QFutureInterface<QVariant> interface;
     QTimer timer;
     std::optional<QVariant> value;
 };
 
-using TimedFutureCtxPtr = std::shared_ptr<TimedFutureCtx>;
-
-
 struct QF::impl_t
 {
     QList<FutureCtxPtr> futures;
     QList<TimedFutureCtxPtr> timedFutures;
+    QList<CombineCtxPtr> combines;
 };
 
 
@@ -95,12 +186,12 @@ QVariant QF::conditionProp(QObject* object, const QString& propertyName, const Q
 QVariant QF::createFuture(const QVariant& fulfilTrigger, const QVariant& cancelTrigger)
 {
     const bool isValid1 = (fulfilTrigger.isValid() && !fulfilTrigger.isNull());
-    const bool isCondition1 = isVariantCondition(fulfilTrigger);
-    const bool isFuture1 = isVariantFuture(fulfilTrigger);
+    const bool isCondition1 = isCondition(fulfilTrigger);
+    const bool isFuture1 = isFuture(fulfilTrigger);
 
     const bool isValid2 = (cancelTrigger.isValid() && !cancelTrigger.isNull());
-    const bool isCondition2 = isVariantCondition(cancelTrigger);
-    const bool isFuture2 = isVariantFuture(cancelTrigger);
+    const bool isCondition2 = isCondition(cancelTrigger);
+    const bool isFuture2 = isFuture(cancelTrigger);
 
     assert(isValid1 && (isCondition1 || isFuture1));
     assert(!isValid2 || isCondition2 || isFuture2);
@@ -233,10 +324,57 @@ QVariant QF::createTimedCanceledFuture(int time)
     }
 }
 
+QVariant QF::combine(CombineTrigger trigger, const QVariant& sources)
+{
+    assert(Internal::isValidEnumValue(trigger));
+
+    if (isNull(sources)) {
+        return createTimedFuture(QVariant(), 0);
+
+    } else if (isFuture(sources)) {
+        return combine(trigger, QVariantList{sources});
+
+    } else if (isCondition(sources)) {
+        return combine(trigger, QVariantList{sources});
+    }
+
+    auto list = sources.toList();
+    assert(!list.isEmpty());
+
+    for (const auto& x : list)
+        assert(isFuture(x) || isCondition(x));
+
+    for (const auto& x : list)
+        if (isCanceled(x))
+            return createTimedCanceledFuture(0);
+
+    for (const auto& x : list)
+        if (isFulfilled(x))
+            return createTimedFuture(QVariant(), 0);
+
+    auto ctx = std::make_shared<CombineCtx>(this);
+    ctx->trigger = trigger;
+
+    for (const auto& x : list) {
+        if (isFuture(x)) {
+            ctx->futureWrappers.append(Init::instance()->createFutureWrapper(x));
+
+        } else {
+            assert(isCondition(x));
+            ctx->conditions.append(x.value<ConditionPtr>());
+        }
+    }
+
+    ctx->connect();
+    impl().combines.append(ctx);
+    return QVariant::fromValue(ctx->interface.future());
+}
+
 void QF::registerTypes()
 {
     qRegisterMetaType<QF::WatcherState>("QF::WatcherState");
     qRegisterMetaType<QF::Comparison>("QF::Comparison");
+    qRegisterMetaType<QF::CombineTrigger>("QF::CombineTrigger");
 
     qmlRegisterSingletonType<QF>("QmlFutures", 1, 0, "QF", [] (QQmlEngine *engine, QJSEngine *) -> QObject* {
         auto ret = QF::instance();
@@ -245,14 +383,49 @@ void QF::registerTypes()
     });
 }
 
-bool QF::isVariantCondition(const QVariant& value) const
+bool QF::isNull(const QVariant& value)
 {
-    return (value.userType() == qMetaTypeId<ConditionPtr>());
+    return Init::instance()->isNull(value);
 }
 
-bool QF::isVariantFuture(const QVariant& value) const
+bool QF::isCondition(const QVariant& value)
 {
-    return Init::instance()->isFutureSupported(value);
+    return Init::instance()->isCondition(value);
+}
+
+bool QF::isFuture(const QVariant& value)
+{
+    return Init::instance()->isSupportedFuture(value);
+}
+
+bool QF::isCanceled(const QVariant& value)
+{
+    if (isCondition(value)) {
+        auto condition = value.value<ConditionPtr>();
+        return !condition->isValid();
+
+    } else if (isFuture(value)) {
+        return Init::instance()->createFutureWrapper(value)->isCanceled();
+
+    } else {
+        assert(!"Unexpected value");
+        return true;
+    }
+}
+
+bool QF::isFulfilled(const QVariant& value)
+{
+    if (isCondition(value)) {
+        auto condition = value.value<ConditionPtr>();
+        return (condition->isActive() == condition->triggerOn());
+
+    } else if (isFuture(value)) {
+        return Init::instance()->createFutureWrapper(value)->isFulfilled();
+
+    } else {
+        assert(!"Unexpected value");
+        return true;
+    }
 }
 
 void QF::recheckFulfilCond(FutureCtx* obj)
@@ -361,6 +534,26 @@ void QF::recheckFutureCancelCond(FutureCtx* obj)
         obj->interface.reportCanceled();
         obj->interface.reportFinished();
         impl().futures.erase(it);
+    }
+}
+
+void QF::recheckCombineCtx(CombineCtx* ctx)
+{
+    auto it = std::find_if(impl().combines.begin(), impl().combines.end(), [ctx](const CombineCtxPtr& item) -> bool {
+        return (item.get() == ctx);
+    });
+
+    assert(it != impl().combines.end());
+
+    if (it->get()->isCanceled()) {
+        it->get()->interface.reportCanceled();
+        it->get()->interface.reportFinished();
+        impl().combines.erase(it);
+
+    } else if (it->get()->isFulfilled()) {
+        it->get()->interface.reportResult(QVariant::fromValue(nullptr));
+        it->get()->interface.reportFinished();
+        impl().combines.erase(it);
     }
 }
 

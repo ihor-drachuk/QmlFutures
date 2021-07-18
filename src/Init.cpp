@@ -83,9 +83,19 @@ std::shared_ptr<FutureWrapper> Init::createFutureWrapper(const QVariant& unknown
     return wrapper;
 }
 
-bool Init::isFutureSupported(const QVariant& unknownFuture) const
+bool Init::isSupportedFuture(const QVariant& unknownFuture) const
 {
     return impl().futureWrappersFactory.contains(unknownFuture.userType());
+}
+
+bool Init::isCondition(const QVariant& value)
+{
+    return (value.userType() == qMetaTypeId<ConditionPtr>());
+}
+
+bool Init::isNull(const QVariant& value)
+{
+    return (value.isNull() || !value.isValid());
 }
 
 void Init::registerType(int typeId, const FactoryMethod& converter)

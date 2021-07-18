@@ -1,11 +1,9 @@
 #pragma once
 #include <QObject>
+#include <memory>
 #include <QmlFutures/Tools.h>
 
 namespace QmlFutures {
-
-struct FutureCtx;
-struct TimedFutureCtx;
 
 //
 // Singleton. Exposed to QML.
@@ -17,7 +15,7 @@ class QF : public QObject, public Internal::Singleton<QF>
     Q_OBJECT
     friend class Init;
 public:
-    enum WatcherState {
+    enum class WatcherState {
         Uninitialized,
         Pending,
         Running,
@@ -28,11 +26,17 @@ public:
     };
     Q_ENUM(WatcherState);
 
-    enum Comparison {
+    enum class Comparison {
         Equal,
         NotEqual
     };
     Q_ENUM(Comparison);
+
+    enum class CombineTrigger {
+        One,
+        All
+    };
+    Q_ENUM(CombineTrigger);
 
 public:
     QF();
@@ -43,18 +47,31 @@ public:
     Q_INVOKABLE QVariant createFuture(const QVariant& fulfilTrigger, const QVariant& cancelTrigger);
     Q_INVOKABLE QVariant createTimedFuture(const QVariant& result, int time);
     Q_INVOKABLE QVariant createTimedCanceledFuture(int time);
+    Q_INVOKABLE QVariant combine(QF::CombineTrigger trigger, const QVariant& sources);
 
 private:
     static void registerTypes();
 
+    struct CombineCtx;
+    struct FutureCtx;
+    struct TimedFutureCtx;
+    using FutureCtxPtr = std::shared_ptr<QF::FutureCtx>;
+    using CombineCtxPtr = std::shared_ptr<QF::CombineCtx>;
+    using TimedFutureCtxPtr = std::shared_ptr<QF::TimedFutureCtx>;
+
 private:
-    bool isVariantCondition(const QVariant& value) const;
-    bool isVariantFuture(const QVariant& value) const;
+    static bool isNull(const QVariant& value);
+    static bool isCondition(const QVariant& value);
+    static bool isFuture(const QVariant& value);
+    static bool isCanceled(const QVariant& value);
+    static bool isFulfilled(const QVariant& value);
+
     void recheckFulfilCond(FutureCtx*);
     void recheckCancelCond(FutureCtx*);
     void finishTimedFuture(TimedFutureCtx*);
     void recheckFutureCond(FutureCtx*);
     void recheckFutureCancelCond(FutureCtx*);
+    void recheckCombineCtx(CombineCtx*);
 
 private:
     QF_DECLARE_PIMPL

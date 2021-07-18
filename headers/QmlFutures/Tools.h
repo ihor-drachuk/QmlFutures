@@ -1,4 +1,6 @@
 #pragma once
+#include <QMetaEnum>
+#include <QString>
 #include <utility>
 #include <memory>
 #include <cassert>
@@ -26,6 +28,12 @@ namespace Internal {
     const impl_t& impl() const { assert(_impl); return *_impl; } \
     template<typename... Args> \
     void createImpl(Args&&... args) { assert(!_impl); _impl = std::make_unique<impl_t>(std::forward<Args>(args)...); }
+
+template<typename T>
+bool isValidEnumValue(T value)
+{
+    return !QString(QMetaEnum::fromType<T>().valueToKey((int)value)).isEmpty();
+}
 
 template<class T>
 class Singleton

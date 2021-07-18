@@ -45,9 +45,9 @@ private:
 private:
     static void registerTypes();
 
-    static bool isCondition(const QVariant& value);
-    static bool isNull(const QVariant& value);
     static bool isConditionCanceled(const QVariant& value);
+    static bool isNull(const QVariant& value);
+    static bool isCondition(const QVariant& value);
 
     ContextPtr findFutureCtx(const QVariant& future);
     ContextPtr findFutureCtx(Context* ctx);

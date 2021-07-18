@@ -96,7 +96,7 @@ void QmlFutureWatcher::setFutureImpl(const QVariant& value)
         emit isFulfilledChanged(impl().isFulfilled);
         emit uninitialized();
     } else {
-        if (Init::instance()->isFutureSupported(value)) {
+        if (Init::instance()->isSupportedFuture(value)) {
             impl().future = value;
             impl().wrapper = Init::instance()->createFutureWrapper(value);
             impl().state = impl().wrapper->getState();
@@ -128,11 +128,11 @@ void QmlFutureWatcher::setFutureImpl(const QVariant& value)
                     impl().isFinished = true;
                     impl().isFulfilled = true;
 
-                    impl().state = QF::Finished;
+                    impl().state = QF::WatcherState::Finished;
                     emit stateChanged(impl().state);
                     emit finished(true, impl().result, impl().resultConverted);
 
-                    impl().state = QF::FinishedFulfilled;
+                    impl().state = QF::WatcherState::FinishedFulfilled;
                     emit stateChanged(impl().state);
                     emit fulfilled(impl().result, impl().resultConverted);
                     break;
@@ -141,11 +141,11 @@ void QmlFutureWatcher::setFutureImpl(const QVariant& value)
                     impl().isFinished = true;
                     impl().isCanceled = true;
 
-                    impl().state = QF::Finished;
+                    impl().state = QF::WatcherState::Finished;
                     emit stateChanged(impl().state);
                     emit finished(false, QVariant(), QVariant());
 
-                    impl().state = QF::FinishedCanceled;
+                    impl().state = QF::WatcherState::FinishedCanceled;
                     emit stateChanged(impl().state);
                     emit canceled();
                     break;
@@ -199,11 +199,11 @@ void QmlFutureWatcher::onFutureStateChanged()
             impl().isFinished = true;
             impl().isFulfilled = true;
 
-            impl().state = QF::Finished;
+            impl().state = QF::WatcherState::Finished;
             emit stateChanged(impl().state);
             emit finished(true, impl().result, impl().resultConverted);
 
-            impl().state = QF::FinishedFulfilled;
+            impl().state = QF::WatcherState::FinishedFulfilled;
             emit stateChanged(impl().state);
             emit fulfilled(impl().result, impl().resultConverted);
 
@@ -218,11 +218,11 @@ void QmlFutureWatcher::onFutureStateChanged()
             impl().isFinished = true;
             impl().isCanceled = true;
 
-            impl().state = QF::Finished;
+            impl().state = QF::WatcherState::Finished;
             emit stateChanged(impl().state);
             emit finished(false, QVariant(), QVariant());
 
-            impl().state = QF::FinishedCanceled;
+            impl().state = QF::WatcherState::FinishedCanceled;
             emit stateChanged(impl().state);
             emit canceled();
 

@@ -15,7 +15,7 @@ struct Condition::impl_t
     bool isActive { false };
     bool isValid { false };
     bool triggerOn { true };
-    QF::Comparison comparison { QF::Equal };
+    QF::Comparison comparison { QF::Comparison::Equal };
 
     QQmlProperty srcProperty;
     QVariant targetValue;
@@ -42,6 +42,7 @@ Condition::Condition(QObject* object, const QString& propertyName, const QVarian
     assert(object);
     assert(!propertyName.isEmpty());
     assert(QQmlProperty(object, propertyName).isValid());
+    assert(Internal::isValidEnumValue(comparison));
 
     createImpl();
     impl().srcProperty = QQmlProperty(object, propertyName);
@@ -108,11 +109,11 @@ bool Condition::compare() const
 
     auto srcValue = impl().srcProperty.read();
     switch (impl().comparison) {
-        case QF::Equal:
+        case QF::Comparison::Equal:
             result = (srcValue == impl().targetValue);
             break;
 
-        case QF::NotEqual:
+        case QF::Comparison::NotEqual:
             result = (srcValue != impl().targetValue);
             break;
     }
