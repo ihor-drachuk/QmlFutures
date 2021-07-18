@@ -18,6 +18,7 @@ namespace QmlFutures {
 struct QF::CombineCtx
 {
     QF* master { nullptr };
+    std::shared_ptr<FutureWrapper> context;
     QF::CombineTrigger trigger;
     QFutureInterface<QVariant> interface;
     QList<std::shared_ptr<FutureWrapper>> futureWrappers;
@@ -40,6 +41,9 @@ struct QF::CombineCtx
     }
 
     bool isCanceled() {
+        if (context && context->isFinished())
+            return true;
+
         for (const auto& x : qAsConst(futureWrappers))
             if (x->isCanceled())
                 return true;
@@ -53,7 +57,7 @@ struct QF::CombineCtx
 
     bool isFulfilled() {
         switch (trigger) {
-            case QF::CombineTrigger::One:
+            case QF::CombineTrigger::Any:
                 for (const auto& x : qAsConst(futureWrappers))
                     if (x->isFulfilled())
                         return true;
@@ -87,6 +91,11 @@ struct QF::CombineCtx
     }
 
     void connect() {
+        if (context) {
+            auto con = QObject::connect(context.get(), &FutureWrapper::stateChanged, master, [this, master = master](){ master->recheckCombineCtx(this); });
+            connections.append(con);
+        }
+
         for (const auto& x : qAsConst(futureWrappers)) {
             auto con = QObject::connect(x.get(), &FutureWrapper::stateChanged, master, [this, master = master](){ master->recheckCombineCtx(this); });
             connections.append(con);
@@ -324,18 +333,25 @@ QVariant QF::createTimedCanceledFuture(int time)
     }
 }
 
-QVariant QF::combine(CombineTrigger trigger, const QVariant& sources)
+QVariant QF::combine(CombineTrigger trigger, const QVariant& context, const QVariant& sources)
 {
     assert(Internal::isValidEnumValue(trigger));
+
+    if (!isNull(context)) {
+        assert(isCondition(context) || isFuture(context));
+
+        if (isCanceled(context) || isFulfilled(context))
+            return createTimedFuture(QVariant(), 0);
+    }
 
     if (isNull(sources)) {
         return createTimedFuture(QVariant(), 0);
 
     } else if (isFuture(sources)) {
-        return combine(trigger, QVariantList{sources});
+        return combine(trigger, context, QVariantList{sources});
 
     } else if (isCondition(sources)) {
-        return combine(trigger, QVariantList{sources});
+        return combine(trigger, context, QVariantList{sources});
     }
 
     auto list = sources.toList();
@@ -354,6 +370,13 @@ QVariant QF::combine(CombineTrigger trigger, const QVariant& sources)
 
     auto ctx = std::make_shared<CombineCtx>(this);
     ctx->trigger = trigger;
+
+    if (!isNull(context)) {
+        // Convert context
+        auto contextFutureVar = combine(QF::CombineTrigger::Any, QVariant(), context);
+        auto contextFuture = Init::instance()->createFutureWrapper(contextFutureVar);
+        ctx->context = contextFuture;
+    }
 
     for (const auto& x : list) {
         if (isFuture(x)) {

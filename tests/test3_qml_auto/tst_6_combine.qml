@@ -20,7 +20,7 @@ Item {
         function test_01_futures_N2_One() {
             var f1 = QF.createTimedFuture(null, 10);
             var f2 = QF.createTimedFuture(null, 150);
-            var f3 = QF.combine(QF.One, [f1, f2]);
+            var f3 = QF.combine(QF.Any, null, [f1, f2]);
             compare(QmlFutures.isFinished(f1), false);
             compare(QmlFutures.isFinished(f2), false);
             compare(QmlFutures.isFinished(f3), false);
@@ -35,7 +35,7 @@ Item {
         function test_02_futures_N2_All() {
             var f1 = QF.createTimedFuture(null, 10);
             var f2 = QF.createTimedFuture(null, 150);
-            var f3 = QF.combine(QF.All, [f1, f2]);
+            var f3 = QF.combine(QF.All, null, [f1, f2]);
             compare(QmlFutures.isFinished(f1), false);
             compare(QmlFutures.isFinished(f2), false);
             compare(QmlFutures.isFinished(f3), false);
@@ -59,7 +59,7 @@ Item {
             var cond1 = QF.conditionProp(obj1, "value", 1, QF.Equal);
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
 
-            var f = QF.combine(QF.One, [cond1, cond2]);
+            var f = QF.combine(QF.Any, null, [cond1, cond2]);
             compare(QmlFutures.isFinished(f), false);
 
             obj1.value = 1;
@@ -79,7 +79,7 @@ Item {
             var cond1 = QF.conditionProp(obj1, "value", 1, QF.Equal);
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
 
-            var f = QF.combine(QF.All, [cond1, cond2]);
+            var f = QF.combine(QF.All, null, [cond1, cond2]);
             compare(QmlFutures.isFinished(f), false);
 
             obj1.value = 1;
@@ -105,7 +105,7 @@ Item {
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
             var f3 = QF.createTimedFuture(null, 100);
 
-            var f = QF.combine(QF.One, [cond1, cond2, f3]);
+            var f = QF.combine(QF.Any, null, [cond1, cond2, f3]);
             compare(QmlFutures.isFinished(f), false);
 
             obj1.value = 1;
@@ -125,7 +125,7 @@ Item {
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
             var f3 = QF.createTimedFuture(null, 100);
 
-            var f = QF.combine(QF.One, [cond1, cond2, f3]);
+            var f = QF.combine(QF.Any, null, [cond1, cond2, f3]);
             compare(QmlFutures.isFinished(f), false);
 
             QmlFutures.wait(f3);
@@ -145,7 +145,7 @@ Item {
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
             var f3 = QF.createTimedFuture(null, 100);
 
-            var f = QF.combine(QF.All, [cond1, cond2, f3]);
+            var f = QF.combine(QF.All, null, [cond1, cond2, f3]);
             compare(QmlFutures.isFinished(f), false);
 
             obj1.value = 1;
@@ -172,7 +172,7 @@ Item {
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
             var f3 = QF.createTimedFuture(null, 100);
 
-            var f = QF.combine(QF.All, [cond1, cond2, f3]);
+            var f = QF.combine(QF.All, null, [cond1, cond2, f3]);
             compare(QmlFutures.isFinished(f), false);
 
             obj1.value = 1;
@@ -198,7 +198,7 @@ Item {
             var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
             var f3 = QF.createTimedCanceledFuture(100);
 
-            var f = QF.combine(QF.All, [cond1, cond2, f3]);
+            var f = QF.combine(QF.All, null, [cond1, cond2, f3]);
             compare(QmlFutures.isFinished(f), false);
 
             obj1.value = 1;
@@ -207,6 +207,35 @@ Item {
             wait(1);
             compare(QmlFutures.isFinished(f), false);
 
+            QmlFutures.wait(f3);
+
+            wait(1);
+            wait(1);
+            compare(QmlFutures.isCanceled(f), true);
+
+            obj1.destroy();
+            obj2.destroy();
+        }
+
+        function test_09_future_condition_N3_All_Context() {
+            var obj1 = comp.createObject();
+            var obj2 = comp.createObject();
+            var cond1 = QF.conditionProp(obj1, "value", 1, QF.Equal);
+            var cond2 = QF.conditionProp(obj2, "value", 1, QF.Equal);
+            var f3 = QF.createTimedFuture(null, 100);
+            var ctx = comp.createObject();
+
+            var f = QF.combine(QF.All, QF.conditionObj(ctx), [cond1, cond2, f3]);
+            compare(QmlFutures.isFinished(f), false);
+
+            obj1.value = 1;
+
+            wait(1);
+            wait(1);
+            compare(QmlFutures.isFinished(f), false);
+
+            ctx.destroy();
+            obj2.value = 1;
             QmlFutures.wait(f3);
 
             wait(1);

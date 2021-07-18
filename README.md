@@ -15,12 +15,15 @@
 
  - **Custom types support**
 
- - **Create QFuture&lt;QVariant> right from QML!**
+ - **Create QFuture&lt;QVariant> right from QML**
    - Declarative way: QmlPromise
    - Scriptable:
      - QF.createFuture(fulfilTrigger, cancelTrigger)
      - QF.createTimedFuture(value, delayMs)
      - QF.createTimedCanceledFuture(delayMs)
+
+ - **Wait for multiple events simultaneously**
+   - Configurable trigger mode: when all of them are finished or when at least one of them is finished
 
 ## API
 `QmlFutures` singleton
@@ -42,13 +45,13 @@
 `QF` singleton
   - enum QF.WatcherState { Uninitialized, Pending, Running, Paused, Finished, FinishedFulfilled, FinishedCanceled}
   - enum QF.Comparison { Equal, NotEqual }
-  - enum QF.CombineTrigger { One, All }
+  - enum QF.CombineTrigger { Any, All }
   - QVariant conditionObj(object);
   - QVariant conditionProp(object, propertyName, value, comparison);
   - QVariant createFuture(fulfilTrigger, cancelTrigger);
   - QVariant createTimedFuture(result, delayMs);
   - QVariant createTimedCanceledFuture(delayMs);
-  - QVariant combine(combineTrigger, list<QFuture_or_Condition>) — combine several futures and conditions to one QFuture
+  - QVariant combine(combineTrigger, context, list<QFuture_or_Condition>) — combine several futures and conditions to one QFuture
 
 `QmlFutureWatcher` item
   - Property: future (in)
@@ -209,6 +212,54 @@ QmlFutureWatcher {
 }
 ```
 
-### Example: Wait for multiple events (TBD...)
+### Example: Wait for multiple events
+```QML
+import QtQuick 2.9
+import QtQuick.Controls 2.9
+import QmlFutures 1.0
+
+ApplicationWindow {
+    width: 800
+    height: 600
+    visible: true
+
+    QtObject {
+        id: internal
+        property var asyncData: QF.createTimedFuture("some data", 1000);
+    }
+
+    Timer {
+        id: timeout
+        repeat: false
+        running: true
+        interval: 1500
+    }
+
+    // Option #1
+    QmlFutureWatcher {
+        future: QF.combine(QF.Any,
+                           QF.conditionProp(timeout, "running", true, QF.NotEqual),
+                           [internal.asyncData])
+
+        onFulfilled: console.debug("Data retrieved: " + QmlFutures.resultConvOf(internal.asyncData))
+        onCanceled: console.debug("Canceled or timeout occured!");
+    }
+
+    // Option #2
+    QmlFutureWatcher {
+        future: QF.combine(QF.Any,
+                           null,
+                           [internal.asyncData, QF.conditionProp(timeout, "running", true, QF.NotEqual)])
+
+        onFinished: {
+            if (QmlFutures.isFulfilled(internal.asyncData)) {
+                console.debug("Data retrieved: " + QmlFutures.resultConvOf(internal.asyncData))
+            } else {
+                console.debug("Canceled or timeout occured!");
+            }
+        }
+    }
+}
+```
 
 For more examples see tests/test3_qml_auto/*.qml

@@ -33,7 +33,7 @@ public:
     Q_ENUM(Comparison);
 
     enum class CombineTrigger {
-        One,
+        Any,
         All
     };
     Q_ENUM(CombineTrigger);
@@ -47,7 +47,7 @@ public:
     Q_INVOKABLE QVariant createFuture(const QVariant& fulfilTrigger, const QVariant& cancelTrigger);
     Q_INVOKABLE QVariant createTimedFuture(const QVariant& result, int time);
     Q_INVOKABLE QVariant createTimedCanceledFuture(int time);
-    Q_INVOKABLE QVariant combine(QF::CombineTrigger trigger, const QVariant& sources);
+    Q_INVOKABLE QVariant combine(QF::CombineTrigger trigger, const QVariant& context, const QVariant& sources);
 
 private:
     static void registerTypes();
