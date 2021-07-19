@@ -43,6 +43,7 @@ public:
     static void registerTypes(const char* url)
     {
         qmlRegisterType<Registrator>(url, 1, 0, "Registrator");
+        qputenv("QML2_IMPORT_PATH", QML_FUTURES_ROOT_DIR"/src/Qml");
     }
 
     explicit Registrator(QObject* parent = nullptr)

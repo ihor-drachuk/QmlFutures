@@ -12,7 +12,7 @@ set_property(TARGET test-QmlFutures-3 PROPERTY CXX_STANDARD 17)
 set_property(TARGET test-QmlFutures-3 PROPERTY AUTOMOC ON)
 set_property(TARGET test-QmlFutures-3 PROPERTY AUTORCC ON)
 target_link_libraries(test-QmlFutures-3 PRIVATE Qt5::QuickTest Qt5::Gui Qt5::Quick QmlFutures)
-target_compile_definitions(test-QmlFutures-3 PRIVATE QUICK_TEST_SOURCE_DIR=":/QmlFutures/QmlTests/")
+target_compile_definitions(test-QmlFutures-3 PRIVATE QUICK_TEST_SOURCE_DIR=":/QmlFutures/QmlTests/" QML_FUTURES_ROOT_DIR="${QML_FUTURES_ROOT_DIR}")
 
 target_compile_options(test-QmlFutures-3 PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/WX>

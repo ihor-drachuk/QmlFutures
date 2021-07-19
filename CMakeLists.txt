@@ -5,6 +5,8 @@ option(QML_FUTURES_ENABLE_TESTS     "QmlFutures: Enable tests" OFF)
 option(QML_FUTURES_ALLOW_QML_TESTS  "QmlFutures: Allow QML tests" ON)
 option(QML_FUTURES_ENABLE_BENCHMARK "QmlFutures: Enable benchmark" OFF)
 
+set(QML_FUTURES_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 find_package(Qt5 COMPONENTS Core Quick REQUIRED)
 
 FILE(GLOB_RECURSE SOURCES src/*.cpp src/*.qrc src/*.h headers/*.h)
