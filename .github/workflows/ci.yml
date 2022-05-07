@@ -12,7 +12,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, macos-10.15, windows-2016, windows-2019]
+        os: [ubuntu-18.04, ubuntu-20.04, macos-10.15, windows-2019, windows-2022]
         build_type: [Release, Debug]
         use_qt: [yes]
 
@@ -52,6 +52,16 @@ jobs:
       shell: bash
       run: |
        echo "GENERATOR=Visual Studio 16 2019" >> $GITHUB_ENV
+       echo "CORES=$NUMBER_OF_PROCESSORS" >> $GITHUB_ENV
+       echo "QT_HOST=windows" >> $GITHUB_ENV
+       echo "QT_ARCH=win32_msvc2019" >> $GITHUB_ENV
+       echo "MSVC_ARCH=-A Win32" >> $GITHUB_ENV
+
+    - name: "Set OS-specific values (Win; 2022)"
+      if: ${{ matrix.os == 'windows-2022' }}
+      shell: bash
+      run: |
+       echo "GENERATOR=Visual Studio 17 2022" >> $GITHUB_ENV
        echo "CORES=$NUMBER_OF_PROCESSORS" >> $GITHUB_ENV
        echo "QT_HOST=windows" >> $GITHUB_ENV
        echo "QT_ARCH=win32_msvc2019" >> $GITHUB_ENV
