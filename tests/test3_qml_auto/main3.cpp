@@ -80,7 +80,9 @@ public:
 static void Registrator_register()
 {
     Registrator::registerTypes("Registrator");
-#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::NullRhi);
+#elif QT_VERSION >= QT_VERSION_CHECK(5,14,0)
     QQuickWindow::setSceneGraphBackend(QSGRendererInterface::NullRhi);
 #endif
 }

@@ -150,7 +150,9 @@ void QmlFutures::onCanceled(const QVariant& future, const QVariant& context, con
 
 void QmlFutures::forget(const QVariant& future)
 {
-    impl().contexts.removeOne(findFutureCtx(future));
+    auto ctx = findFutureCtx(future);
+    assert(impl().contexts.contains(ctx));
+    impl().contexts.removeOne(ctx);
 }
 
 void QmlFutures::wait(const QVariant& future)
@@ -215,6 +217,25 @@ bool QmlFutures::isCondition(const QVariant& value)
     return Init::instance()->isCondition(value);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+QmlFutures::ContextPtr QmlFutures::findFutureCtx(const QVariant& future)
+{
+    auto it = std::find_if(impl().contexts.begin(), impl().contexts.end(),
+                           [future](const QmlFutures::ContextPtr& item) ->bool
+    {
+        // To Qt6 devs: nice work, guys!
+        auto ptr1 = reinterpret_cast<const QFutureInterfaceBasePrivate* const*>(future.constData());
+        auto ptr2 = reinterpret_cast<const QFutureInterfaceBasePrivate* const*>(item->future.constData());
+
+        if (ptr1 == ptr2)
+            return true;
+
+        return ptr1 && ptr2 && (*ptr1 == *ptr2);
+    });
+
+    return (it == impl().contexts.end()) ? ContextPtr() : *it;
+}
+#else
 QmlFutures::ContextPtr QmlFutures::findFutureCtx(const QVariant& future)
 {
     auto it = std::find_if(impl().contexts.begin(), impl().contexts.end(),
@@ -225,6 +246,7 @@ QmlFutures::ContextPtr QmlFutures::findFutureCtx(const QVariant& future)
 
     return (it == impl().contexts.end()) ? ContextPtr() : *it;
 }
+#endif
 
 QmlFutures::ContextPtr QmlFutures::findFutureCtx(Context* ctx)
 {
@@ -300,33 +322,26 @@ void QmlFutures::futureChanged(Context* ctxPtr)
 void QmlFutures::conditionChanged()
 {
     auto it = impl().contexts.begin();
-    const auto itEnd = impl().contexts.end();
-    while (it != itEnd) {
+    while (it != impl().contexts.end()) {
         auto hIt = it->get()->finishedHandlers.begin();
-        auto hItEnd = it->get()->finishedHandlers.end();
-
-        while (hIt != hItEnd) {
+        while (hIt != it->get()->finishedHandlers.end()) {
             auto remove = (hIt->condition && (!hIt->condition->isActive() || !hIt->condition->isValid()));
             if (remove) hIt->condition->disconnect(this);
-            hIt = remove ? hIt = it->get()->finishedHandlers.erase(hIt) : hIt + 1;
+            hIt = remove ? it->get()->finishedHandlers.erase(hIt) : hIt + 1;
         }
 
         hIt = it->get()->resultHandlers.begin();
-        hItEnd = it->get()->resultHandlers.end();
-
-        while (hIt != hItEnd) {
+        while (hIt != it->get()->resultHandlers.end()) {
             auto remove = (hIt->condition && (!hIt->condition->isActive() || !hIt->condition->isValid()));
             if (remove) hIt->condition->disconnect(this);
-            hIt = remove ? hIt = it->get()->resultHandlers.erase(hIt) : hIt + 1;
+            hIt = remove ? it->get()->resultHandlers.erase(hIt) : hIt + 1;
         }
 
         hIt = it->get()->canceledHandlers.begin();
-        hItEnd = it->get()->canceledHandlers.end();
-
-        while (hIt != hItEnd) {
+        while (hIt != it->get()->canceledHandlers.end()) {
             auto remove = (hIt->condition && (!hIt->condition->isActive() || !hIt->condition->isValid()));
             if (remove) hIt->condition->disconnect(this);
-            hIt = remove ? hIt = it->get()->canceledHandlers.erase(hIt) : hIt + 1;
+            hIt = remove ? it->get()->canceledHandlers.erase(hIt) : hIt + 1;
         }
 
         auto remove = it->get()->finishedHandlers.isEmpty() &&

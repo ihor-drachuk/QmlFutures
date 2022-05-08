@@ -102,7 +102,10 @@ Item {
                 value = true;
             });
 
+            compare(value, false);
             QmlFutures.forget(f);
+
+            compare(value, false);
             QmlFutures.wait(f);
 
             compare(value, false);
