@@ -2,14 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(test-QmlFutures-3 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Gui Quick QuickTest REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Quick QuickTest)
 
 add_executable(test-QmlFutures-3 main3.cpp main3.qrc)
-set_property(TARGET test-QmlFutures-3 PROPERTY CXX_STANDARD 17)
 set_property(TARGET test-QmlFutures-3 PROPERTY AUTOMOC ON)
 set_property(TARGET test-QmlFutures-3 PROPERTY AUTORCC ON)
 target_link_libraries(test-QmlFutures-3 PRIVATE Qt${QT_VERSION_MAJOR}::QuickTest Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Quick QmlFutures)

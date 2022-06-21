@@ -18,7 +18,7 @@ set(QML_IMPORT_PATH "${QML_IMPORT_PATH}" CACHE STRING "Qt Creator extra qml impo
 
 add_library(QmlFutures STATIC ${SOURCES})
 target_link_libraries(QmlFutures PUBLIC Qt${QT_VERSION_MAJOR}::Core PRIVATE Qt${QT_VERSION_MAJOR}::Quick)
-set_property(TARGET QmlFutures PROPERTY CXX_STANDARD 17)
+target_compile_features(QmlFutures PUBLIC cxx_std_17)
 set_property(TARGET QmlFutures PROPERTY AUTOMOC ON)
 set_property(TARGET QmlFutures PROPERTY AUTORCC ON)
 
