@@ -1,3 +1,7 @@
+/* License:  MIT
+ * Source:   https://github.com/ihor-drachuk/QmlFutures
+ * Contact:  ihor-drachuk-libs@pm.me  */
+
 import QtQuick 2.9
 import QtQuick.Controls 2.9
 import QmlFutures 1.0
