@@ -51,7 +51,7 @@ if (QML_FUTURES_NEED_BENCHMARK AND NOT TARGET benchmark)
 
         FetchContent_Declare(
             google-benchmark
-            URL https://github.com/google/benchmark/archive/refs/tags/v1.5.3.tar.gz
+            URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.tar.gz
         )
 
         FetchContent_MakeAvailable(google-benchmark)
